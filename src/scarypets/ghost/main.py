@@ -80,6 +80,10 @@ for emote_name in EMOTES:
   emote_path = os.path.join(BASE_DIR, "..", "..", "..", "assets", "ghost", f"{emote_name}.png")
   ANIM_FRAMES[emote_name] = scale_frames(load_sprite_sheet(emote_path, GHOST_FRAME_COUNT), GHOST_SCALE)
 
+background_path = os.path.join(BASE_DIR, "..", "..", "..", "assets", "ghost", "temp-background.png")
+background = pygame.image.load(background_path).convert()
+background = pygame.transform.smoothscale(background, (WIDTH, HEIGHT))
+
 ui_manager = pygame_gui.UIManager((WIDTH, HEIGHT))
 
 clock = pygame.time.Clock()
@@ -317,7 +321,8 @@ while is_running:
     if not scaring and not emoting:
       move_ghosts(ghosts, time_delta, WIDTH, HEIGHT)
 
-  window_surface.fill(BG_COLOR)
+  # window_surface.fill(BG_COLOR)
+  window_surface.blit(background, (0, 0))
 
   for ghost in ghosts:
     draw_ghost(window_surface, ghost, ANIM_FRAMES)
