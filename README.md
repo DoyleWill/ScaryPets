@@ -20,6 +20,21 @@ Launch ScaryPets directly by running main.py in whichever pet you would like to 
 python src/scarypets/ghost/main.py
 ```
 
+## Emotes:
+Each pet has a unique amount of "emotes" to give their character life. Below is a map of each emote possible for each pet.
+#### Ghost
+The ghost pet can choose from the following:
+##### Candle
+![Candle Sprite](assets/ghost/candle.png)
+##### Heart
+![Heart Sprite](assets/ghost/heart.png)
+##### Pumpkin
+![Pumpkin Sprite](assets/ghost/pumpkin.png)
+##### Scare
+![Scare Sprite](assets/ghost/scare.png)
+##### Shy
+![Shy Sprite](assets/ghost/shy.png)
+
 ## Future Updates
 
 Going forward I plan on adding the instructions on how to build the portable version on a Raspberry Pi, including all parts used and a guide. I also want to add more fun pets! Much more to come, so stay tuned!
