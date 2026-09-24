@@ -33,16 +33,10 @@ STILL_CHANCE = 0.2
 SCARE_ANIM_FRAME_DURATION = 0.3
 SCARE_LOOPS = 3
 SCARE_CHANCE = 0.05
-scare_check_timer = 0.0
-scare_loops_remaining = 0
 
 EMOTE_FRAME_DURATION = 0.5
 EMOTE_LOOPS = 2
 EMOTE_CHANCE = 0.03
-emote_check_timer = 0.0
-emote_loops_remaining = 0
-emoting = False
-current_emote = None
 
 ghost_path = os.path.join(BASE_DIR, "..", "..", "..", "assets", "ghost", "ghost-idle1.png")
 move_left_path = os.path.join(BASE_DIR, "..", "..", "..", "assets", "ghost", "move-left.png")
@@ -115,6 +109,10 @@ def generate_ghosts(count, width, height):
         'anim_state': 'idle',
         'anim_frame': 0,
         'anim_timer': 0.0,
+        'action': None,
+        'action_loops_left': 0,
+        'action_frame_duration': 0.5,
+        'check_timer': random.uniform(0, 1.0),
     })
   return ghosts
 
@@ -145,6 +143,9 @@ def update_anim_state(ghost):
 
 def move_ghosts(ghosts, time_delta, width, height):
   for ghost in ghosts:
+    if ghost['action']:
+      continue
+
     ghost['turn_timer'] -= time_delta
     if ghost['turn_timer'] <= 0:
       ghost['target_angle'] = ghost['angle'] + random.uniform(-math.pi / 2, math.pi / 2)
@@ -183,67 +184,60 @@ def move_ghosts(ghosts, time_delta, width, height):
       ghost['target_angle'] = -math.pi / 2
 
 
-def advance_scare_animation(ghosts, time_delta):
-  global scaring, scare_loops_remaining
-  loop_completed = False
-  for ghost in ghosts:
-    ghost['anim_timer'] += time_delta
-    if ghost['anim_timer'] >= SCARE_ANIM_FRAME_DURATION:
-      ghost['anim_timer'] = 0
-      ghost['anim_frame'] = (ghost['anim_frame'] + 1) % GHOST_FRAME_COUNT
-      if ghost['anim_frame'] == 0:
-        loop_completed = True
+def start_action(ghost, state, loops, frame_duration):
+  ghost['action'] = state
+  ghost['action_loops_left'] = loops
+  ghost['action_frame_duration'] = frame_duration
+  ghost['anim_state'] = state
+  ghost['anim_frame'] = 0
+  ghost['anim_timer'] = 0.0
 
-  if loop_completed:
-    scare_loops_remaining -= 1
-    if scare_loops_remaining <= 0:
-      scaring = False
-      for ghost in ghosts:
+
+def trigger_scare(ghost):
+  if ghost['action']:
+    return
+  start_action(ghost, 'scare', SCARE_LOOPS, SCARE_ANIM_FRAME_DURATION)
+
+
+def trigger_emote(ghost, name=None):
+  if ghost['action']:
+    return
+  start_action(ghost, name or random.choice(EMOTES), EMOTE_LOOPS, EMOTE_FRAME_DURATION)
+
+
+def advance_action(ghost, time_delta):
+  ghost['anim_timer'] += time_delta
+  if ghost['anim_timer'] >= ghost['action_frame_duration']:
+    ghost['anim_timer'] = 0
+    ghost['anim_frame'] = (ghost['anim_frame'] + 1) % GHOST_FRAME_COUNT
+    if ghost['anim_frame'] == 0:
+      ghost['action_loops_left'] -= 1
+      if ghost['action_loops_left'] <= 0:
+        ghost['action'] = None
         ghost['anim_state'] = 'idle'
         ghost['anim_frame'] = 0
         ghost['anim_timer'] = 0.0
 
 
-def advance_emote_animation(ghosts, time_delta):
-  global emoting, emote_loops_remaining
-  loop_completed = False
-  for ghost in ghosts:
-    ghost['anim_timer'] += time_delta
-    if ghost['anim_timer'] >= EMOTE_FRAME_DURATION:
-      ghost['anim_timer'] = 0
-      ghost['anim_frame'] = (ghost['anim_frame'] + 1) % GHOST_FRAME_COUNT
-      if ghost['anim_frame'] == 0:
-        loop_completed = True
-
-  if loop_completed:
-    emote_loops_remaining -= 1
-    if emote_loops_remaining <= 0:
-      emoting = False
-      for ghost in ghosts:
-        ghost['anim_state'] = 'idle'
-        ghost['anim_frame'] = 0
-        ghost['anim_timer'] = 0.0
+def roll_random_actions(ghost, time_delta):
+  ghost['check_timer'] += time_delta
+  if ghost['check_timer'] < 1.0:
+    return
+  ghost['check_timer'] = 0.0
+  if random.random() < SCARE_CHANCE:
+    trigger_scare(ghost)
+  elif random.random() < EMOTE_CHANCE:
+    trigger_emote(ghost)
 
 
 def button1_pressed():
   pygame.event.post(pygame.event.Event(pygame.QUIT))
 
 
-def trigger_scare():
-  global scaring, scare_loops_remaining
-  if scaring or emoting:
-    return
-  scaring = True
-  scare_loops_remaining = SCARE_LOOPS
-  for ghost in ghosts:
-    ghost['anim_state'] = 'scare'
-    ghost['anim_frame'] = 0
-    ghost['anim_timer'] = 0.0
-
-
 def button2_pressed():
   print("Boo!")
-  trigger_scare()
+  for ghost in ghosts:
+    trigger_scare(ghost)
 
 
 def button3_pressed():
@@ -259,22 +253,10 @@ def button4_pressed():
   print("Removed 1 Ghost")
 
 
-def trigger_emote(name=None):
-  global emoting, current_emote, emote_loops_remaining
-  if scaring or emoting:
-    return
-  current_emote = name or random.choice(EMOTES)
-  emoting = True
-  emote_loops_remaining = EMOTE_LOOPS
-  for ghost in ghosts:
-    ghost['anim_state'] = current_emote
-    ghost['anim_frame'] = 0
-    ghost['anim_timer'] = 0.0
-
-
 def button5_pressed():
   print("Hitting an Emote!")
-  trigger_emote()
+  for ghost in ghosts:
+    trigger_emote(ghost)
 
 
 controller_thread = threading.Thread(
@@ -286,7 +268,6 @@ controller_thread.start()
 
 
 ghosts = generate_ghosts(1, WIDTH, HEIGHT)
-scaring = False
 elapsed_time = 0
 
 while is_running:
@@ -300,31 +281,18 @@ while is_running:
 
   ui_manager.update(time_delta)
 
-  if scaring:
-    advance_scare_animation(ghosts, time_delta)
-  elif emoting:
-    advance_emote_animation(ghosts, time_delta)
-  else:
-    scare_check_timer += time_delta
-    if scare_check_timer >= 1.0:
-      scare_check_timer = 0.0
-      if random.random() < SCARE_CHANCE:
-        trigger_scare()
+  for ghost in list(ghosts):
+    if ghost['action']:
+      advance_action(ghost, time_delta)
+    else:
+      roll_random_actions(ghost, time_delta)
 
-    if not scaring:
-      emote_check_timer += time_delta
-      if emote_check_timer >= 1.0:
-        emote_check_timer = 0.0
-        if random.random() < EMOTE_CHANCE:
-          trigger_emote()
-
-    if not scaring and not emoting:
-      move_ghosts(ghosts, time_delta, WIDTH, HEIGHT)
+  move_ghosts(ghosts, time_delta, WIDTH, HEIGHT)
 
   # window_surface.fill(BG_COLOR)
   window_surface.blit(background, (0, 0))
 
-  for ghost in ghosts:
+  for ghost in list(ghosts):
     draw_ghost(window_surface, ghost, ANIM_FRAMES)
 
   ui_manager.draw_ui(window_surface)
