@@ -22,7 +22,7 @@ python src/scarypets/ghost/main.py
 
 ## Emotes:
 Each pet has a unique amount of "emotes" to give their character life. Below is a map of each emote possible for each pet.
-#### Ghost
+### Ghost
 The ghost pet can choose from the following:
 ##### Candle
 ![Candle Sprite](assets/ghost/candle.png)
